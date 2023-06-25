@@ -10,4 +10,4 @@ sequelize.authenticate().then(function() {
     console.log("Erro: Conexao com o banco de dados nao realizada com sucesso");
 })
 
-module.exports = Sequelize;
+module.exports = sequelize;
