@@ -8,26 +8,53 @@ const Url = require('./models/encurtadorModel');
 });
 
 app.get('/', async(req, res) => {
-    await db.sync();
     const query = await Url.findAll();
-    let res_urls = {};
     if (query.length !== 0) {
+        let resArr = {};
         for(let i = 0; i < query.length; i++) {
-            res_urls[i] = {
-                "url": query[i]['url_origin'],
-                "new_url": query[i]['new_url'],
-                "validade": query[i]['validade']
+            const horario = new Date().getMinutes();
+            const val = query[i]['validade'].getMinutes();
+            let diff = valiCh(horario,val);
+            if (diff != 0) {
+                resArr[i] = {
+                    'status_code': 200,
+                    'status': 'success',
+                    'data': {
+                        'Urls': [
+                            {
+                                'url': query[i]['url_origin'],
+                                'new_url': query[i]['new_url'],
+                                'validade': diff + "m restante (s)"
+                            }
+                        ]
+                    }
+                }
+            } else {
+                await Url.destroy({
+                    where:{
+                        id:query[i]['id']
+                    }
+                });
             }
         }
-        res.json(res_urls);
+        res.json(resArr);
     } else {
-        res.json({"msg":"empty"});
+        res.json({
+            'status_code': 204,
+            'status':'empty',
+            'data': {
+                'Urls': [
+                    {
+                        'msg':'empty'
+                    }
+                ]
+            }
+        });
     }
 });
 
 app.get('/url/:url_origin', async(req, res) => {
-    await db.sync();
-    const newUrl = await Url.create({
+    await Url.create({
         url_origin: req.params['url_origin'],
         new_url: geraStringAleatoria(5),
         validade: new Date()
@@ -36,17 +63,17 @@ app.get('/url/:url_origin', async(req, res) => {
 });
 
 app.get('/:url', async(req, res) => {
-    await db.sync();
     const url_encu = await Url.findAll({
         where: {
             new_url: req.params['url']
         }
     });
-    let horario = new Date();
     if (url_encu.length !== 0) {
-        let dateDiff = new Date (horario - url_encu[0]['validade']);
-        console.log(`Diff: ${dateDiff.getMinutes()}`);
-        if (dateDiff.getMinutes() >= 5) {
+        let horario = new Date();
+        let dateDiff = new Date (horario-url_encu[0]['validade']);
+        dateDiff = 5 - dateDiff.getMinutes();
+        console.log(`Diff: ${dateDiff}`);
+        if (dateDiff === 0) {
             await Url.destroy({
                 where:{
                     id:url_encu[0]['id']
@@ -64,6 +91,20 @@ app.get('/:url', async(req, res) => {
 app.listen(8080, () => {
     console.log("servidor rodando em localhost:8080");
 })
+
+
+valiCh = (min, val) => {
+    let validade = 0;
+    let diff = 5 - (min - val);
+    if (diff > 5) {
+        console.log(`diff minutes: ${diff};`);
+        return validade;
+    } else {
+        validade = diff;
+        console.log(`diff minutes: ${diff};`);
+        return validade;
+    }
+} 
 
 geraStringAleatoria = (tamanho) => {
     var stringAleatoria = '';
